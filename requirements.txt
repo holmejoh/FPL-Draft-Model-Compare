@@ -4,3 +4,9 @@ numpy
 seaborn
 statsmodels
 matplotlib
+pyarrow
+scikit-learn
+plotly
+plotly-express
+scipy
+joblib

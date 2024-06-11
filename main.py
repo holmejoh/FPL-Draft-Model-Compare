@@ -1,144 +1,71 @@
+import os
+
 import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import requests, json
-
-columns_to_use = ['web_name', 'first_name', 'second_name', 'minutes', 'element_type',
-                  'goals_scored', 'assists', 'clean_sheets', 'goals_conceded',
-                  'expected_goals', 'expected_assists', 'expected_goals_conceded',
-                  'expected_goal_involvements',
-                  'threat', 'creativity', 'influence', 'ict_index',
-                  'total_points', 'bps']
-
-element_type_map = {1: 'GK', 2: 'DEF', 3: 'MID', 4: 'ATT'}
+import joblib
+from models.fpl_model import FPLModel, predict_total_points
+from data import data
 
 
-def read_data(file_name, minutes_cutoff):
-    raw_data = pd.read_csv(file_name)
-    df = pd.DataFrame(raw_data)
-    # filter by columns of interest
-    df = df[columns_to_use]
-    # add per 90 columns
-    df['goals_per_90'] = df['goals_scored'] / (df['minutes'] / 90)
-    df['assists_per_90'] = df['assists'] / (df['minutes'] / 90)
-    df['goal_involvements_per_90'] = (df['goals_scored'] + df['assists']) / (df['minutes'] / 90)
-    df['points_per_90'] = df['total_points'] / (df['minutes'] / 90)
-    df['expected_goals_per_90'] = df['expected_goals'] / (df['minutes'] / 90)
-    df['expected_assists_per_90'] = df['expected_assists'] / (df['minutes'] / 90)
-    df['expected_goal_involvements_per_90'] = df['expected_assists_per_90'] + df['expected_goals_per_90']
-    df['expected_goals_conceded_per_90'] = df['expected_goals_conceded'] / (df['minutes'] / 90)
-    df['bonus_per_90'] = df['bps'] / (df['minutes'] / 90)
-    df['threat_per_90'] = df['threat'] / (df['minutes'] / 90)
-    df['influence_per_90'] = df['influence'] / (df['minutes'] / 90)
-    df['creativity_per_90'] = df['creativity'] / (df['minutes'] / 90)
-    df['ict_per_90'] = df['ict_index'] / (df['minutes'] / 90)
-    df['percent_minutes'] = df['minutes'] / (90 * 38)
-    # filter by minutes played
-    df = df[df['minutes'] > minutes_cutoff]
-    df = df.replace({'element_type': element_type_map})
-    return df
+def compare_players(model, scaler, df, names, year):
+    players = df[(df['web_name'].isin(names)) & (df['year'] == year)]
+
+    if len(players) > 2:
+        raise Exception('Too many players to compare')
+
+    player_1 = players.iloc[0]
+    player_2 = players.iloc[1]
+
+    # Predict total points for each player
+    points_player1 = predict_total_points(model, scaler, player_1)
+    points_player2 = predict_total_points(model, scaler, player_2)
+
+    # Compare predictions
+    if points_player1 > points_player2:
+        print(f"Player 1 is expected to have a higher performance.")
+    elif points_player1 < points_player2:
+        print("Player 2 is expected to have a higher performance.")
+    else:
+        print("Both players are expected to have the same performance.")
+
+    print(f"{players.iloc[0]['web_name']} predicted points: {points_player1}")
+    print(f"{players.iloc[1]['web_name']} predicted points: {points_player2}")
 
 
-def format_players_df(df, minutes_cutoff):
-    df = df[columns_to_use]
-    df['expected_goals'] = df['expected_goals'].astype('float')
-    df['expected_assists'] = df['expected_assists'].astype('float')
-    df['expected_goals_conceded'] = df['expected_goals_conceded'].astype('float')
-    df['threat'] = df['threat'].astype('float')
-    df['creativity'] = df['creativity'].astype('float')
-    df['influence'] = df['influence'].astype('float')
-    df['ict_index'] = df['ict_index'].astype('float')
+def export_predictions_to_csv(model, scaler, players_data, output_file):
+    # Create a DataFrame to store predictions
+    predictions_df = pd.DataFrame(columns=['web_name', 'predicted_total_points'])
 
-    # add per 90 columns
-    df['goals_per_90'] = df['goals_scored'] / (df['minutes'] / 90)
-    df['assists_per_90'] = df['assists'] / (df['minutes'] / 90)
-    df['goal_involvements_per_90'] = (df['goals_scored'] + df['assists']) / (df['minutes'] / 90)
-    df['points_per_90'] = df['total_points'] / (df['minutes'] / 90)
-    df['expected_goals_per_90'] = df['expected_goals'] / (df['minutes'] / 90)
-    df['expected_assists_per_90'] = df['expected_assists'] / (df['minutes'] / 90)
-    df['expected_goals_conceded_per_90'] = df['expected_goals_conceded'] / (df['minutes'] / 90)
-    df['expected_goal_involvements_per_90'] = df['expected_assists_per_90'] + df['expected_goals_per_90']
-    df['bonus_per_90'] = df['bps'] / (df['minutes'] / 90)
-    df['threat_per_90'] = df['threat'] / (df['minutes'] / 90)
-    df['influence_per_90'] = df['influence'] / (df['minutes'] / 90)
-    df['creativity_per_90'] = df['creativity'] / (df['minutes'] / 90)
-    df['ict_per_90'] = df['ict_index'] / (df['minutes'] / 90)
-    df['percent_minutes'] = df['minutes'] / (90 * 38)
-    df['minutes'] = df['minutes'].astype('float')
-    # filter by minutes played
-    df = df[df['minutes'] > minutes_cutoff]
-    df = df.replace({'element_type': element_type_map})
-    return df
+    # Iterate over player data and make predictions
+    for idx, player_data in players_data.iterrows():
+        # Predict total points for the player
+        predicted_points = predict_total_points(model, scaler, player_data)
+
+        # Append player name and predicted points to DataFrame
+        predictions_df = pd.concat([predictions_df,
+                                    pd.DataFrame([{'web_name': player_data['web_name'],
+                                                   'predicted_total_points': predicted_points,
+                                                   'total_points': player_data['total_points']}])], ignore_index=True)
+
+    # Export DataFrame to CSV
+    predictions_df.to_csv(output_file, index=False)
 
 
-def get_by_pos(df, pos):
-    return df[df['element_type'] == pos]
-
-
-# used for initial exploration
-def create_scatter_plot_by_pos(pos, data, column_x, column_y):
-    position_data = get_by_pos(data, pos)
-    plt.scatter(position_data[column_x], position_data[column_y])
-    r = np.corrcoef(position_data[column_x], position_data[column_y])
-    print(f'r: {r[0, 1]}')
-    plt.xlabel(column_x)
-    plt.ylabel(column_y)
-    plt.title(f'{column_x} vs {column_y}')
-    plt.show()
-    plt.clf()
-
-
-def create_model_coeffs(data, pos, columns):
-    column_coeffs = {}
-    column_weights = {}
-    columns_sum = 0
-    pos_data = get_by_pos(data, pos)
-    for column in columns:
-        r2 = np.corrcoef(pos_data[column], pos_data['points_per_90'])[0, 1] ** 2
-        column_coeffs[column] = r2
-        columns_sum += r2
-
-    for key, value in column_coeffs.items():
-        column_weights[key] = value
-    return column_weights
-
-
-def create_model_by_pos(data, pos):
-    column_y = 'total_points'
-    model_var_dict = {'ATT': ['bonus_per_90', 'expected_goal_involvements_per_90', 'expected_goals_per_90',
-                              'expected_assists_per_90'],
-                      'MID': ['bonus_per_90', 'expected_goal_involvements_per_90', 'expected_goals_per_90',
-                              'expected_assists_per_90'],
-                      'DEF': ['bonus_per_90', 'expected_goal_involvements_per_90', 'expected_goals_per_90',
-                              'expected_assists_per_90', 'expected_goals_conceded_per_90'],
-                      'GK': ['bonus_per_90', 'expected_goals_conceded_per_90']}
-
-    return create_model_coeffs(data, pos, model_var_dict[pos])
-
-
-def get_df_w_model(data, pos_models):
-    data['model_score'] = 0
-    for pos in ['ATT', 'MID', 'DEF', 'GK']:
-        pos_model = pos_models[pos]
-        for key, value in pos_model.items():
-            data.loc[data['element_type'] == pos, ['model_score']] = data.loc[data['element_type'] == pos][
-                                                                         'model_score'] + \
-                                                                     data.loc[data['element_type'] == pos][key] * value
-    data['model_score_per_minute'] = data['model_score'] * data['percent_minutes']
-    return data
-
-
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
-    ap23 = read_data('22_23_players_raw.csv', 1000)
-    print(create_model_by_pos(ap23, 'ATT'))
-    print(create_model_by_pos(ap23, 'MID'))
-    print(create_model_by_pos(ap23, 'DEF'))
-    print(create_model_by_pos(ap23, 'GK'))
-    pos_models = {'ATT': create_model_by_pos(ap23, 'ATT'),
-                  'MID': create_model_by_pos(ap23, 'MID'),
-                  'DEF': create_model_by_pos(ap23, 'DEF'),
-                  'GK': create_model_by_pos(ap23, 'GK')}
-    ap_model = get_df_w_model(ap23, pos_models)
+    web_names = os.environ['NAMES'].split(' ')
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+    data = data.Data()
+    ap23 = data.get_historical_player_data()
+    ap23['year'] = '2023'
+    ap24 = data.format_players_df(data.get_current_players_data()['elements'], 1000)
+    ap24['year'] = '2024'
+    cum_df = pd.concat([ap23, ap24])
+
+    fpl_model = FPLModel('MID')
+    fpl_model.run(cum_df)
+    saved_scaler = joblib.load('scaler.pkl')
+    saved_model = joblib.load('model.pkl')
+    compare_players(saved_model, saved_scaler, cum_df, web_names, '2024')
+
+    export_predictions_to_csv(saved_model, saved_scaler,
+                              cum_df[(cum_df['year'] == '2024') & (cum_df['element_type'] == 'MID')],
+                              'prediction.csv')
