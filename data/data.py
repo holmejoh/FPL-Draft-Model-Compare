@@ -7,7 +7,7 @@ class Data:
     _columns_to_use = ['web_name', 'first_name', 'second_name', 'minutes', 'element_type',
                        'goals_scored', 'assists', 'clean_sheets', 'goals_conceded',
                        'expected_goals', 'expected_assists', 'expected_goals_conceded',
-                       'expected_goal_involvements',
+                       'expected_goal_involvements', 'saves',
                        'threat', 'creativity', 'influence', 'ict_index',
                        'total_points', 'bps']
 
@@ -44,6 +44,7 @@ class Data:
         df['expected_assists_per_90'] = df['expected_assists'] / (df['minutes'] / 90)
         df['expected_goal_involvements_per_90'] = df['expected_assists_per_90'] + df['expected_goals_per_90']
         df['expected_goals_conceded_per_90'] = df['expected_goals_conceded'] / (df['minutes'] / 90)
+        df['saves_per_90'] = df['saves'] / (df['minutes'] / 90)
         df['bps_per_90'] = df['bps'] / (df['minutes'] / 90)
         df['threat_per_90'] = df['threat'] / (df['minutes'] / 90)
         df['influence_per_90'] = df['influence'] / (df['minutes'] / 90)
@@ -76,6 +77,7 @@ class Data:
         df['expected_assists_per_90'] = df['expected_assists'] / (df['minutes'] / 90)
         df['expected_goals_conceded_per_90'] = df['expected_goals_conceded'] / (df['minutes'] / 90)
         df['expected_goal_involvements_per_90'] = df['expected_assists_per_90'] + df['expected_goals_per_90']
+        df['saves_per_90'] = df['saves'] / (df['minutes'] / 90)
         df['bps_per_90'] = df['bps'] / (df['minutes'] / 90)
         df['threat_per_90'] = df['threat'] / (df['minutes'] / 90)
         df['influence_per_90'] = df['influence'] / (df['minutes'] / 90)

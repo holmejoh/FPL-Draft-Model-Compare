@@ -6,9 +6,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from utils.contstants import FEATURES
 
 
-def preprocess_player_data(player_data, scaler):
+def preprocess_player_data(player_data, position, scaler):
     # Ensure features are in the correct order and format
-    x = player_data[FEATURES].values.reshape(1, -1)  # Reshape to 2D array
+    x = player_data[FEATURES[position]].values.reshape(1, -1)  # Reshape to 2D array
 
     # Apply the same scaling as used in training
     x_scaled = scaler.transform(x)
@@ -16,9 +16,9 @@ def preprocess_player_data(player_data, scaler):
     return x_scaled
 
 
-def predict_total_points(model, scaler, player_data):
+def predict_total_points(model, scaler, player_data, position):
     # Preprocess the data point
-    x_scaled = preprocess_player_data(player_data, scaler)
+    x_scaled = preprocess_player_data(player_data, position, scaler)
 
     # Predict using the trained model
     predicted_points = model.predict(x_scaled)
@@ -38,7 +38,7 @@ class FPLModel:
         position_data = data[data['element_type'] == self.position]
 
         # Separate features and target
-        x = position_data[FEATURES]
+        x = position_data[FEATURES[self.position]]
         y = position_data['total_points']
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
 

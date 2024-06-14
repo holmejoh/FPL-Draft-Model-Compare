@@ -1,16 +1,20 @@
 #!/bin/bash
 
-# Check if at least one argument is provided
-if [ "$#" -lt 1 ]; then
-    echo "Usage: $0 <name1> <name2> ..."
-    exit 1
-fi
+# Parse command-line arguments
+ARGS=()
 
-# Build Docker image from Dockerfile, passing names as arguments
-docker build -t fpl-model-image -f Dockerfile --build-arg NAMES="$*" .
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        -t|--tool) ARGS+=("--tool" "$2"); shift ;;
+        -p|--position) ARGS+=("--position" "$2"); shift ;;
+        -n|--names) ARGS+=("--names" "$2"); shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
 
-# Run Docker container from the built image
-#docker run --name fpl-model-container fpl-model-image
-docker run -d -v "$(pwd):/app" fpl-model-image
+# Build the Docker image
+docker build -t fpl-draft-model .
 
-#docker logs -f fpl-model-container 2>&1
+# Run the Docker container with the provided arguments
+docker run --rm fpl-draft-model "${ARGS[@]}"
