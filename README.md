@@ -16,14 +16,14 @@ Create csv of all players for a particular position
 ## Usage
 ### Player Comparison
 ```
-./run.sh -tool {TYPE} -names {NAMES}
+./run.sh --tool {TYPE} --names {NAMES}
 ```
 
 ## Examples
 ### Player Comparison
-```./run.sh -tool comparison -names Eze Rashford```
+```./run.sh --tool comparison --names Eze Rashford```
 
 ### Positional Prediction
-```./run.sh -tool prediction -position MID ```
+```./run.sh --tool prediction --prediction MID ```
 
 Position Options: GK - DEF - MID - FWD

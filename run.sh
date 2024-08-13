@@ -17,4 +17,4 @@ done
 docker build -t fpl-draft-model .
 
 # Run the Docker container with the provided arguments
-docker run --rm fpl-draft-model "${ARGS[@]}"
+docker run --rm -v ~/Desktop/FPL_Projects/scripts/FPL-Draft-Model-Compare/output:/app/output fpl-draft-model "${ARGS[@]}"

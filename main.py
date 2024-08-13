@@ -3,6 +3,7 @@ import joblib
 from models.fpl_model import FPLModel, predict_total_points
 from data import data
 import argparse
+import os
 
 
 def handle_args():
@@ -89,7 +90,7 @@ def main():
             print(f"Predicting for position: {position}")
             export_predictions_to_csv(saved_model, saved_scaler,
                                       cum_df[(cum_df['year'] == '2024') & (cum_df['element_type'] == position)],
-                                      'prediction.csv', position)
+                                      f'/app/output/prediction_{position}.csv', position)
         else:
             raise Exception("Invalid tool type")
 
